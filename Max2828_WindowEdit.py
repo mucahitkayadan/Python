@@ -21,22 +21,30 @@ Zero_Byte         = 0X00
 
 class WindowEdit(object):
     source_byte       = 0X01 
-    destination_byte  = 0X00
+    destination_byte  = 0X02
     ValueofChangeMax  = 2
     counter_of_SaveDB = 1
     ComPort           = 'COM3'
     globalnameDB      = 'LastPowerDown.db'
+    checkPackageList     = True
     print("RF     PADAC    RX     TX    LNA   GAIN    M2828    M5866")
+    def checkDevice(self,ui):
+        if self.con.is_open:
+            ui.ConnectionGraphic.setText(self.con.name +" Connected")
+        else:
+            ui.ConnectionGraphic.setText("Disconnected")
     def SerialConnection(self,ui):
         try:
             self.ComPort = ui.ComPort_Line.text()
             self.con = serial.Serial(self.ComPort, 9600 , timeout = 1)
         except serial.SerialException:
             print("No Port Found")
+            ui.ConnectionGraphic.setText("Disonnected")
             ui.close_application()
             raise
         except:
             print("Communication Port Error")
+            ui.ConnectionGraphic.setText("Disconnected")
             ui.close_application()
     def PrintDB(self):
         try:
@@ -81,6 +89,7 @@ class WindowEdit(object):
             print("Table couldn't be Created")
         print(params)
         self.PrintDB()
+        
     def ReceiveDB(self,ui, nameofDB):
         rcvDB = sqlite3.connect(nameofDB)
         cur = rcvDB.cursor()
@@ -100,11 +109,12 @@ class WindowEdit(object):
         except:
             print("Couldn't Retrieve Data From Database")
     def SaveComboboxDB(self, ui):
-        rcvDB = sqlite3.connect('CDBase.db')
-        cur = rcvDB.cursor()        
         CB1_value   = ui.Setups_ComboBox.itemText(2)
         CB2_value   = ui.Setups_ComboBox.itemText(3)
         CB3_value   = ui.Setups_ComboBox.itemText(4)
+        rcvDB = sqlite3.connect('CDBase.db')
+        cur = rcvDB.cursor()    
+              
         param       = (CB1_value,CB2_value,CB3_value)
         rcvDB.execute("DROP TABLE IF EXISTS CDB")
         rcvDB.commit()
@@ -132,6 +142,9 @@ class WindowEdit(object):
                 ui.Setups_ComboBox.insertItem(2,str(row[0]))
                 ui.Setups_ComboBox.insertItem(3,str(row[1]))
                 ui.Setups_ComboBox.insertItem(4,str(row[2]))
+                ui.Setups_ComboBox.setItemText(2,str(row[0]))
+                ui.Setups_ComboBox.setItemText(3,str(row[1]))
+                ui.Setups_ComboBox.setItemText(4,str(row[2]))
         except sqlite3.OperationalError:
             print("Operational Error")
         except:
@@ -142,10 +155,22 @@ class WindowEdit(object):
             self.con.write(PackageList)
         except serial.SerialException:
             print("No connection found")
+            self.try3Times(PackageList)
             raise
         except:
             print("Error occured")
-        
+            
+    def try3Times(self,PackageList):
+        try:
+            for i in range(3):
+                print("Trying again... "+ str(i+1) + ". time ")
+                self.mainFunction(PackageList)
+                if self.checkPackageList == True:
+                    print("Succeed in " + str(i+1) + ". time")
+                    break;
+            print("========================================================")
+        except:
+            print("Communication Error")
     def receive(self,PackageList):
         try:
             our_buffer = []
@@ -163,41 +188,49 @@ class WindowEdit(object):
                 print("Package received successfully")
             else:
                 for i in range(3):
-                    print("Trying again... "+ i + ". time ")
-                    sleep(1)
-                    self.send(PackageList)
+                    print("Trying again... "+ str(i+1) + ". time ")
+                    self.mainFunction(PackageList)                    
                 print("Package could not be transfered")
-                ui.close_application()
             print("========================================================")
         except serial.SerialException:
             print("No connection found")
             raise
         except:
             print("Error occured")
-    def receiveack(self):
+    def receiveAck(self,PackageList):
         try:
             our_buffer = []
             counter = 0
-            while counter < 12:
+            while counter < 5:
                 msg = self.con.read()
                 msg = msg.hex()
                 msg = int(msg,16)
                 our_buffer.append(msg)            
                 print(msg)
-                counter = counter + 1
+                counter = counter + 1                
             print(our_buffer)
-            print("Acknowledgement received successfully")
-            print("========================================================")
+            if (PackageList[0] == our_buffer[0] and PackageList[1] == our_buffer[2] and PackageList[2] == our_buffer[1] ):
+                if (our_buffer[4] == 1):
+                    print("Acknowledgement received successfully")
+                    print("Package is correct!")                    
+                elif(our_buffer[4] == 0):
+                    print("Acknowledgement received successfully")
+                    print("Package is not correct:(")
+                self.checkPackageList = True   
+            else:
+                self.checkPackageList = False
+                self.try3Times(PackageList)
         except serial.SerialException:
             print("Serial Error for Ack")
-            raise
+            self.try3Times(PackageList)
         except:
             print("Error occured for Ack")
-    def mainfunc(self, PackageList):
+            self.try3Times(PackageList)
+    def mainFunction(self, PackageList):
         try:
             self.send(PackageList)
-            self.receive(PackageList)
-            self.receiveack()
+##            self.receive(PackageList)
+            self.receiveAck(PackageList)
         except serial.SerialException:
             print("No connection found")
             raise
@@ -209,11 +242,11 @@ class WindowEdit(object):
     def des5866(self):
         self.destination_byte = 0X03
         self.ValueofChangeMax  = 3
-    def checktodes(self):
+    def checktoDestination(self):
         if   self.ValueofChangeMax == 2:
-            self.mainfunc(self.Max2828_Package)
+            self.mainFunction(self.Max2828_Package)
         elif self.ValueofChangeMax == 3:
-            self.mainfunc(self.Max5866_Package)
+            self.mainFunction(self.Max5866_Package)
         else:
             pass
     def ValuetoHex(self,ui):
@@ -276,14 +309,9 @@ class WindowEdit(object):
         self.Max5866_Package    = [starter_byte, self.source_byte, self.destination_byte, MAX_command,
                            Max58661, Max58662, Zero_Byte, Zero_Byte, Zero_Byte, Zero_Byte, Zero_Byte, Zero_Byte ]
         
-        self.Ackno_Package = [starter_byte, self.destination_byte, self.source_byte, command_byte,
-                              Zero_Byte, Zero_Byte, Zero_Byte, Zero_Byte]
-
-
-        
 
             
-    def mainloop(self):
+    def mainLoop(self):
         app = QtWidgets.QApplication(sys.argv)
         ui = myWindow.Ui_MainWindow()        
         MainWindow = ui.callMain()    
@@ -291,6 +319,7 @@ class WindowEdit(object):
         MainWindow.show()
         self.SerialConnection(ui)
         self.ValuetoHex(ui)
+        self.checkDevice(ui)
 ##########
         ui.ComPort_Line.editingFinished.connect(lambda: self.SerialConnection(ui))
 ##########    Menu Side
@@ -307,7 +336,7 @@ class WindowEdit(object):
         ui.TXVGAGain_Line.editingFinished.connect(lambda: ui.TXVGAGain_ScrollBar.setSliderPosition(int(ui.TXVGAGain_Line.text())))
 ##########  Button Side
         def removeCombobox():
-            if (  ui.Setups_ComboBox.currentText() == "LastPowerDown" ):
+            if (  ui.Setups_ComboBox.currentText() == "LastPowerDown" or ui.Setups_ComboBox.currentText() == "" ):
                 pass
             else:
                 ui.Setups_ComboBox.removeItem(ui.Setups_ComboBox.currentIndex())  
@@ -346,7 +375,8 @@ class WindowEdit(object):
                 self.globalnameDB = ui.Setups_ComboBox.currentText()+'.db'
                 self.SaveDB(ui, self.globalnameDB)
             print(self.globalnameDB + " created")
-        self.SaveComboboxDB(ui)
+        ui.actionExit.triggered.connect(lambda: self.SaveComboboxDB(ui))
+        ui.actionExit.triggered.connect(lambda: self.ReceiveComboboxDB(ui))
         ComboboxDB()
         ui.RFFrequency_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
         ui.PADACOutputBias_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
@@ -357,15 +387,15 @@ class WindowEdit(object):
         ui.Max2828_ComboBox.currentIndexChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))        
         ui.Max5866_ComboBox.currentIndexChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
         ui.Setups_ComboBox.currentIndexChanged.connect(lambda: self.ReceiveDB(ui, self.globalnameDB))
-        self.ReceiveComboboxDB(ui)
+        
                                                  
-        ui.SendAll_Button.clicked.connect(lambda: self.mainfunc(self.RF_Package))
-        ui.SendAll_Button.clicked.connect(lambda: self.mainfunc(self.PADAC_Package))
-        ui.SendAll_Button.clicked.connect(lambda: self.mainfunc(self.RX_Package))
-        ui.SendAll_Button.clicked.connect(lambda: self.mainfunc(self.TX_Package))
-        ui.SendAll_Button.clicked.connect(lambda: self.mainfunc(self.LNA_Package))
-        ui.SendAll_Button.clicked.connect(lambda: self.mainfunc(self.GAIN_Package))
-        ui.SendAll_Button.clicked.connect(lambda: self.checktodes())
+        ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.RF_Package))
+        ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.PADAC_Package))
+        ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.RX_Package))
+        ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.TX_Package))
+        ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.LNA_Package))
+        ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.GAIN_Package))
+        ui.SendAll_Button.clicked.connect(lambda: self.checktoDestination())
       
 ##############        
 ##############
@@ -374,7 +404,7 @@ class WindowEdit(object):
 
 if __name__ == "__main__":
     Edit = WindowEdit()
-    Edit.mainloop()
+    Edit.mainLoop()
 
 
 
