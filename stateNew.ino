@@ -21,7 +21,6 @@ void setup() {
   state = 0;
   current_byte = 0;
   packNum = 1;
- // ack_byte  = 0X01;
   pinMode(13, OUTPUT);
   //digitalWrite(13,LOW);
 }
@@ -42,24 +41,22 @@ void loop() {
             if(Serial.available() > 0){
               pack[current_byte]= Serial.read();
               current_byte++;
-              if(current_byte == 12){
+              if(current_byte >= 12){
                 state = 2;
               }
             }
             break;
           case 2:
-            if( /*funcs.checkCommandTotal(packNum, pack[4], pack[5]) &&*/ funcs.checkStarter(pack[0]) && 
+            if( funcs.checkCommandTotal(packNum, pack[4], pack[5]) && funcs.checkStarter(pack[0]) && 
             funcs.checkSource(pack[1]) && funcs.checkDest(pack[2]) && funcs.checkCommand(pack[3])){
-              //working
-              packNum++;
-                 if(packNum == 8){ packNum = 1;
-              ack_byte = 0X01;
-              state = 3;}
+               ack_byte = 0X01;
             }else{
-              ack_byte = 0X00;
-             state = 3;//burası 7 idi
+               ack_byte = 0X00;
             }
-            break;
+            packNum++;
+            state = 3;
+            if(packNum == 8){ packNum = 1; }
+            break;            
           case 3:
             prepare_ack();
             state = 4;

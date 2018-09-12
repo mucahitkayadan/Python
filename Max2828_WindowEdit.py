@@ -162,8 +162,13 @@ class WindowEdit(object):
             
     def try3Times(self,PackageList):
         try:
+            ctr = 0
             for i in range(3):
+                ctr = ctr+1
                 print("Trying again... "+ str(i+1) + ". time ")
+                if ctr >= 3:
+                    print("Couldn't success");
+                    break;
                 self.mainFunction(PackageList)
                 if self.checkPackageList == True:
                     print("Succeed in " + str(i+1) + ". time")
