@@ -27,6 +27,7 @@ class WindowEdit(object):
     ComPort           = 'COM3'
     globalnameDB      = 'LastPowerDown.db'
     checkPackageList     = True
+    ctr=0
     print("RF     PADAC    RX     TX    LNA   GAIN    M2828    M5866")
     def checkDevice(self,ui):
         if self.con.is_open:
@@ -89,25 +90,6 @@ class WindowEdit(object):
             print("Table couldn't be Created")
         print(params)
         self.PrintDB()
-        
-    def ReceiveDB(self,ui, nameofDB):
-        rcvDB = sqlite3.connect(nameofDB)
-        cur = rcvDB.cursor()
-        result = cur.execute("SELECT ID,RF, PADAC, RXVGA, TXVGA, TXLNA, RXGAIN, MAX,PORT FROM DB")
-        try:
-            for row in result:
-                ui.RFFrequency_Line.setText(str(row[1]))
-                ui.PADACOutputBias_Line.setText(str(row[2]))
-                ui.RXVGAGain_Line.setText(str(row[3]))
-                ui.TXVGAGain_Line.setText(str(row[4]))
-                ui.RXLNAGain_ComboBox.setCurrentIndex(int(row[5]))
-                ui.TXBasebandGain_ComboBox.setCurrentIndex(int(row[6]))
-                self.ValueofChangeMax = int(row[7])
-                ui.ComPort_Line.setText(str(row[8]))
-        except sqlite3.OperationalError:
-            print("Operational Error")
-        except:
-            print("Couldn't Retrieve Data From Database")
     def SaveComboboxDB(self, ui):
         CB1_value   = ui.Setups_ComboBox.itemText(2)
         CB2_value   = ui.Setups_ComboBox.itemText(3)
@@ -133,6 +115,26 @@ class WindowEdit(object):
             print("Operational Error")
         except:
             print("Couldn't Retrieve Data From Database")
+        
+    def ReceiveDB(self,ui, nameofDB):
+        rcvDB = sqlite3.connect(nameofDB)
+        cur = rcvDB.cursor()
+        result = cur.execute("SELECT ID,RF, PADAC, RXVGA, TXVGA, TXLNA, RXGAIN, MAX,PORT FROM DB")
+        try:
+            for row in result:
+                ui.RFFrequency_Line.setText(str(row[1]))
+                ui.PADACOutputBias_Line.setText(str(row[2]))
+                ui.RXVGAGain_Line.setText(str(row[3]))
+                ui.TXVGAGain_Line.setText(str(row[4]))
+                ui.RXLNAGain_ComboBox.setCurrentIndex(int(row[5]))
+                ui.TXBasebandGain_ComboBox.setCurrentIndex(int(row[6]))
+                self.ValueofChangeMax = int(row[7])
+                ui.ComPort_Line.setText(str(row[8]))
+        except sqlite3.OperationalError:
+            print("Operational Error")
+        except:
+            print("Couldn't Retrieve Data From Database")
+    
     def ReceiveComboboxDB(self,ui):
         rcvDB = sqlite3.connect('CDBase.db')
         cur = rcvDB.cursor()
@@ -162,7 +164,6 @@ class WindowEdit(object):
             
     def try3Times(self,PackageList):
         try:
-            ctr = 0
             for i in range(3):
                 ctr = ctr+1
                 print("Trying again... "+ str(i+1) + ". time ")
@@ -382,7 +383,8 @@ class WindowEdit(object):
             print(self.globalnameDB + " created")
         ui.actionExit.triggered.connect(lambda: self.SaveComboboxDB(ui))
         ui.actionExit.triggered.connect(lambda: self.ReceiveComboboxDB(ui))
-        ComboboxDB()
+        
+        ui.Setups_ComboBox.currentIndexChanged.connect(lambda: ComboboxDB())
         ui.RFFrequency_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
         ui.PADACOutputBias_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
         ui.RXVGAGain_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
