@@ -1,14 +1,14 @@
 #include <header.h>
 
 class myFuncs funcs;
-char starter_byte     = 0XAA;
-char source_byte      = 0X01;
-char destination_byte = 0X02;
-char command_byte;
-char ack_byte;
+int starter_byte     = 0XAA;
+int source_byte      = 0X01;
+int destination_byte = 0X02;
+int command_byte;
+int ack_byte;
 int ndx = 0;
-char pack[12];
-char pack_ack[5];
+int pack[12];
+int pack_ack[5];
 int state;
 int current_byte;
 int packNum;
