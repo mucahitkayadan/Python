@@ -8,8 +8,7 @@ import struct
 import sqlite3
 starter_byte      = 0XAA 
 Max2828_command   = 0X02 
-Max5866_command   = 0X03 
-command_byte      = 0XBB 
+Max5866_command   = 0X03
 RF_command        = 0x01 
 PADAC_command     = 0X02 
 RX_command        = 0X03 
@@ -29,37 +28,75 @@ class WindowEdit(object):
     checkPackageList     = True
     ctr=0
     print("RF     PADAC    RX     TX    LNA   GAIN    M2828    M5866")
+    def checkLock(self,ui):
+        try:
+            if ui.Lock_CheckBox.isChecked():
+                ui.RFFrequency_Line.setEnabled(False)
+                ui.PADACOutputBias_Line.setEnabled(False)
+                ui.RXVGAGain_Line.setEnabled(False)
+                ui.TXVGAGain_Line.setEnabled(False)
+                ui.ComPort_Line.setEnabled(False)                
+                ui.RXLNAGain_ComboBox.setEnabled(False)
+                ui.TXBasebandGain_ComboBox.setEnabled(False)
+                ui.Setups_ComboBox.setEnabled(False)
+                ui.Max2828_ComboBox.setEnabled(False)
+                ui.Max5866_ComboBox.setEnabled(False)
+                ui.Del_Button.setEnabled(False)                
+                ui.RFFrequency_ScrollBar.setEnabled(False)               
+                ui.PADACOutputBias_ScrollBar.setEnabled(False)
+                ui.RXVGAGain_ScrollBar.setEnabled(False)
+                ui.TXVGAGain_ScrollBar.setEnabled(False) 
+            else:
+                ui.RFFrequency_Line.setEnabled(True)
+                ui.PADACOutputBias_Line.setEnabled(True)
+                ui.RXVGAGain_Line.setEnabled(True)
+                ui.TXVGAGain_Line.setEnabled(True)
+                ui.ComPort_Line.setEnabled(True)                
+                ui.RXLNAGain_ComboBox.setEnabled(True)
+                ui.TXBasebandGain_ComboBox.setEnabled(True)
+                ui.Setups_ComboBox.setEnabled(True)
+                ui.Max2828_ComboBox.setEnabled(True)
+                ui.Max5866_ComboBox.setEnabled(True)
+                ui.Del_Button.setEnabled(True)
+                ui.RFFrequency_ScrollBar.setEnabled(True)               
+                ui.PADACOutputBias_ScrollBar.setEnabled(True)
+                ui.RXVGAGain_ScrollBar.setEnabled(True)
+                ui.TXVGAGain_ScrollBar.setEnabled(True)
+        except:
+            print("Error with Lock")
     def checkDevice(self,ui):
         if self.con.is_open:
-            ui.ConnectionGraphic.setText(self.con.name +" Connected")
+            ui.Connection_Label.setText(self.con.name +" Connected")
         else:
-            ui.ConnectionGraphic.setText("Disconnected")
+            ui.Connection_Label.setText("Disconnected")
     def SerialConnection(self,ui):
         try:
             self.ComPort = ui.ComPort_Line.text()
             self.con = serial.Serial(self.ComPort, 9600 , timeout = 1)
         except serial.SerialException:
             print("No Port Found")
-            ui.ConnectionGraphic.setText("Disonnected")
+            ui.Connection_Label.setText("Disonnected")
             ui.close_application()
             raise
         except:
             print("Communication Port Error")
-            ui.ConnectionGraphic.setText("Disconnected")
+            ui.Connection_Label.setText("Disconnected")
             ui.close_application()
     def PrintDB(self):
         try:
-            result = self.theCursor.execute("SELECT ID,RF, PADAC, RXVGA, TXVGA, TXLNA, RXGAIN, MAX, PORT FROM DB")
+            result = self.theCursor.execute("SELECT ID,RF, PADAC, RXVGA, TXVGA, TXLNA, RXGAIN, MAX, PORT, CBI, CBT FROM DB")
             for row in result:
                 print("ID     :", row[0])
                 print("RF     :", row[1])
                 print("PADAC  :", row[2])
                 print("RXVGA  :", row[3])
                 print("TXVGA  :", row[4])
-                print("TXLNA  :", row[5])
-                print("RXGAIN :", row[6])
+                print("RXLNA  :", row[5])
+                print("TXGAIN :", row[6])
                 print("MAX    :", row[7])
                 print("PORT   :", row[8])
+                print("Index  :", row[9])
+                print("Text   :", row[10])
                 print("        ")
         except sqlite3.OperationalError:
             print("The Table Doesn't Exist")
@@ -78,48 +115,26 @@ class WindowEdit(object):
             GAIN_value  = ui.TXBasebandGain_ComboBox.currentIndex()
             MAX_value   = self.ValueofChangeMax
             Port_value  = ui.ComPort_Line.text()
-            params = ( RF_value, PADAC_value, RXVGA_value, TXVGA_value, LNA_value, GAIN_value, MAX_value, Port_value)
+            CBi_value    = ui.Setups_ComboBox.currentIndex()
+            CBt_value    = ui.Setups_ComboBox.currentText()
+            params = ( RF_value, PADAC_value, RXVGA_value, TXVGA_value, LNA_value, GAIN_value, MAX_value, Port_value, CBi_value, CBt_value)
             db_conn.execute("DROP TABLE IF EXISTS DB")
             db_conn.commit()
-            db_conn.execute("CREATE TABLE DB(ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,RF INT,PADAC INT,RXVGA INT,TXVGA INT,TXLNA INT,RXGAIN INT,MAX INT,PORT TEXT);")
+            db_conn.execute('''CREATE TABLE DB
+            (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,RF INT,PADAC INT,RXVGA INT,TXVGA INT,TXLNA INT,RXGAIN INT,MAX INT,PORT TEXT, CBI INT, CBT TEXT);''')
             db_conn.commit()            
-            db_conn.execute("INSERT INTO DB VALUES (NULL,?,?,?,?,?,?,?,?)",params)
+            db_conn.execute("INSERT INTO DB VALUES (NULL,?,?,?,?,?,?,?,?,?,?)",params)
             db_conn.commit()
             print("Table Created")
         except sqlite3.OperationalError:
             print("Table couldn't be Created")
         print(params)
         self.PrintDB()
-    def SaveComboboxDB(self, ui):
-        CB1_value   = ui.Setups_ComboBox.itemText(2)
-        CB2_value   = ui.Setups_ComboBox.itemText(3)
-        CB3_value   = ui.Setups_ComboBox.itemText(4)
-        rcvDB = sqlite3.connect('CDBase.db')
-        cur = rcvDB.cursor()    
-              
-        param       = (CB1_value,CB2_value,CB3_value)
-        rcvDB.execute("DROP TABLE IF EXISTS CDB")
-        rcvDB.commit()
-        rcvDB.execute("CREATE TABLE CDB(CB1 INT, CB2 INT, CB3 INT );")
-        rcvDB.commit()            
-        rcvDB.execute("INSERT INTO CDB VALUES (?,?,?)",param)
-        rcvDB.commit()
-        print("Table Created")
-        try:
-            result = cur.execute("SELECT CB1, CB2, CB3 FROM CDB")
-            for row in result:                
-                print("1   :", row[0])
-                print("2   :", row[1])
-                print("3   :", row[2])
-        except sqlite3.OperationalError:
-            print("Operational Error")
-        except:
-            print("Couldn't Retrieve Data From Database")
         
     def ReceiveDB(self,ui, nameofDB):
         rcvDB = sqlite3.connect(nameofDB)
         cur = rcvDB.cursor()
-        result = cur.execute("SELECT ID,RF, PADAC, RXVGA, TXVGA, TXLNA, RXGAIN, MAX,PORT FROM DB")
+        result = cur.execute("SELECT ID,RF, PADAC, RXVGA, TXVGA, TXLNA, RXGAIN, MAX, PORT, CBI, CBT FROM DB")
         try:
             for row in result:
                 ui.RFFrequency_Line.setText(str(row[1]))
@@ -130,27 +145,13 @@ class WindowEdit(object):
                 ui.TXBasebandGain_ComboBox.setCurrentIndex(int(row[6]))
                 self.ValueofChangeMax = int(row[7])
                 ui.ComPort_Line.setText(str(row[8]))
+##                ui.Setups_ComboBox.insertItem(1,str(row[10]))
         except sqlite3.OperationalError:
             print("Operational Error")
         except:
-            print("Couldn't Retrieve Data From Database")
+            print("Couldn't Retrieve Data From Database when receiving")
     
-    def ReceiveComboboxDB(self,ui):
-        rcvDB = sqlite3.connect('CDBase.db')
-        cur = rcvDB.cursor()
-        result = cur.execute("SELECT CB1,CB2,CB3 FROM CDB")
-        try:
-            for row in result:
-                ui.Setups_ComboBox.insertItem(2,str(row[0]))
-                ui.Setups_ComboBox.insertItem(3,str(row[1]))
-                ui.Setups_ComboBox.insertItem(4,str(row[2]))
-                ui.Setups_ComboBox.setItemText(2,str(row[0]))
-                ui.Setups_ComboBox.setItemText(3,str(row[1]))
-                ui.Setups_ComboBox.setItemText(4,str(row[2]))
-        except sqlite3.OperationalError:
-            print("Operational Error")
-        except:
-            print("Couldn't Retrieve Data From Database")
+
         
     def send(self,PackageList):
         try:
@@ -326,7 +327,9 @@ class WindowEdit(object):
         self.SerialConnection(ui)
         self.ValuetoHex(ui)
         self.checkDevice(ui)
+        
 ##########
+        ui.Lock_CheckBox.stateChanged.connect(lambda: self.checkLock(ui))
         ui.ComPort_Line.editingFinished.connect(lambda: self.SerialConnection(ui))
 ##########    Menu Side
         ui.actionExit.triggered.connect(ui.close_application)
@@ -381,19 +384,18 @@ class WindowEdit(object):
                 self.globalnameDB = ui.Setups_ComboBox.currentText()+'.db'
                 self.SaveDB(ui, self.globalnameDB)
             print(self.globalnameDB + " created")
-        ui.actionExit.triggered.connect(lambda: self.SaveComboboxDB(ui))
-        ui.actionExit.triggered.connect(lambda: self.ReceiveComboboxDB(ui))
         
         ui.Setups_ComboBox.currentIndexChanged.connect(lambda: ComboboxDB())
-        ui.RFFrequency_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
-        ui.PADACOutputBias_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
-        ui.RXVGAGain_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
-        ui.TXVGAGain_ScrollBar.valueChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
+        
+        ui.RFFrequency_ScrollBar.sliderReleased.connect(lambda: self.SaveDB(ui, self.globalnameDB))
+        ui.PADACOutputBias_ScrollBar.sliderReleased.connect(lambda: self.SaveDB(ui, self.globalnameDB))
+        ui.RXVGAGain_ScrollBar.sliderReleased.connect(lambda: self.SaveDB(ui, self.globalnameDB))
+        ui.TXVGAGain_ScrollBar.sliderReleased.connect(lambda: self.SaveDB(ui, self.globalnameDB))
         ui.RXLNAGain_ComboBox.currentIndexChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
         ui.TXBasebandGain_ComboBox.currentIndexChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))        
         ui.Max2828_ComboBox.currentIndexChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))        
         ui.Max5866_ComboBox.currentIndexChanged.connect(lambda: self.SaveDB(ui, self.globalnameDB))
-        ui.Setups_ComboBox.currentIndexChanged.connect(lambda: self.ReceiveDB(ui, self.globalnameDB))
+        ui.Setups_ComboBox.activated.connect(lambda: self.ReceiveDB(ui, self.globalnameDB))
         
                                                  
         ui.SendAll_Button.clicked.connect(lambda: self.mainFunction(self.RF_Package))
