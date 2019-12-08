@@ -1,4 +1,4 @@
-# Python
+# Max2828 serial communication GUI
 My Python Projects,
 Execute Max2828_WindowEdit file.
 This project contains sqlite3, pyserial, pyqt and pystruct
